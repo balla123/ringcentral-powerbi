@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install libraries
-        run: pip install requests pandas
+      - name: Install dependencies
+        run: pip install requests pandas numpy
 
       - name: Run script
         run: python script.py
