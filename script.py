@@ -104,13 +104,19 @@ new_df = pd.json_normalize(all_records)
 
 # =========================
 # 5. SDR LOGIC
-# =========================
-if not new_df.empty:
-    new_df["SDR_Name"] = np.where(
-        new_df["direction"] == "Outbound",
-        new_df["from.name"],
-        new_df["to.name"]
-    )
+# Ensure columns exist before using
+for col in ["from.name", "to.name"]:
+    if col not in new_df.columns:
+        new_df[col] = None
+
+# SDR logic (safe)
+import numpy as np
+
+new_df["SDR_Name"] = np.where(
+    new_df["direction"] == "Outbound",
+    new_df["from.name"],
+    new_df["to.name"]
+)
 
 # =========================
 # 6. ADD INGEST TIMESTAMP
