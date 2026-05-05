@@ -109,23 +109,40 @@ def fetch_activities():
 # LEADS
 # =========================
 def fetch_leads():
-    leads = fetch_all("https://api.pipedrive.com/v1/leads")
-    users = fetch_all("https://api.pipedrive.com/v1/users")
+    leads = fetch_all(LEADS_URL)
 
-    user_map = {u["id"]: u["name"] for u in users}
+    # mappings (only used as fallback)
+    user_map = get_user_map()
+    person_map = get_person_map()
+    org_map = get_org_map()
+
+    def extract_id(field):
+        if isinstance(field, dict):
+            return field.get("value") or field.get("id")
+        return field
 
     rows = []
-    for l in leads:
-        owner_id = extract_id(l.get("owner_id"))
-        creator_id = extract_id(l.get("creator_user_id"))
+
+    for lead in leads:
+        owner_id = extract_id(lead.get("owner_id"))
+        creator_id = extract_id(lead.get("creator_user_id"))
+
+        person_id = extract_id(lead.get("person_id"))
+        org_id = extract_id(lead.get("organization_id"))
+
+        # 🔥 HYBRID FIX
+        person_name = lead.get("person_name") or person_map.get(person_id, "")
+        org_name = lead.get("org_name") or org_map.get(org_id, "")
 
         rows.append({
-            "Title": l.get("title", ""),
-            "Add Time": l.get("add_time", ""),
+            "Lead ID": lead.get("id"),
+            "Title": lead.get("title", ""),
+            "Status": lead.get("status", ""),
+            "Source": lead.get("source_name", ""),
+            "Add Time": lead.get("add_time", ""),
 
-            # Leads API already flattened
-            "Person Name": l.get("person_name", ""),
-            "Organization": l.get("org_name", ""),
+            "Person Name": person_name,
+            "Organization": org_name,
 
             "Owner": user_map.get(owner_id, ""),
             "Creator": user_map.get(creator_id, "")
@@ -133,8 +150,7 @@ def fetch_leads():
 
     df = pd.DataFrame(rows).fillna("").astype(str)
 
-    return df[df["Owner"].str.lower() == "christine maitland"]
-
+    return df
 
 # =========================
 # MAIN EXPORT
