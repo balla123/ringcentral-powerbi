@@ -121,6 +121,7 @@ def fetch_contacts():
     for p in persons:
         email = p.get("email", [])
         phone = p.get("phone", [])
+        update_time = p.get("update_time", "")
 
         raw_call_label = p.get(CALL_LABEL_KEY, "")
         call_label = decode_value(raw_call_label, call_label_map)
@@ -132,7 +133,8 @@ def fetch_contacts():
             "Tag": str(p.get("a73ad09d182b53e7aae4d2cc45213a206fdf05ba", "")),
             "Call Label": call_label,
             "Owner": extract_name(p.get("owner_id")),
-            "Organization": extract_name(p.get("org_id"))
+            "Organization": extract_name(p.get("org_id")),
+             "Update Time": update_time
         })
 
     df = pd.DataFrame(rows).fillna("").astype(str)
