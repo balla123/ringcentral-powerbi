@@ -109,7 +109,7 @@ def fetch_activities():
 # LEADS
 # =========================
 def fetch_leads():
-    leads = fetch_all(LEADS_URL)
+    leads = fetch_all("https://api.pipedrive.com/v1/leads")
 
     # mappings (only used as fallback)
     user_map = get_user_map()
