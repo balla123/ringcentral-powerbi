@@ -1,0 +1,35 @@
+name: Pipedrive Daily Export
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # daily at 3 AM UTC (~8:30 AM IST)
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          PIPEDRIVE_API_TOKEN: ${{ secrets.PIPEDRIVE_API_TOKEN }}
+        run: python pipedrive_export.py
+
+      - name: Commit Excel file
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add pipedrive_data.xlsx
+          git commit -m "Daily Pipedrive export" || echo "No changes"
+          git push
