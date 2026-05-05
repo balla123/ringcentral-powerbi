@@ -158,38 +158,44 @@ def fetch_activities():
 def fetch_leads():
     leads = fetch_all(LEADS_URL)
 
-    user_map = get_user_map()
+    # mappings
     person_map = get_person_map()
     org_map = get_org_map()
+    user_map = get_user_map()
+    label_map = get_lead_label_map()   # 🔥 NEW
 
-    rows = []
+    all_rows = []
 
     for lead in leads:
-        owner_id = extract_id(lead.get("owner_id"))
-        creator_id = extract_id(lead.get("creator_user_id"))
         person_id = extract_id(lead.get("person_id"))
         org_id = extract_id(lead.get("organization_id"))
+        owner_id = extract_id(lead.get("owner_id"))
 
-        person_name = lead.get("person_name") or person_map.get(person_id, "")
-        org_name = lead.get("org_name") or org_map.get(org_id, "")
+        raw_labels = lead.get("labels", [])
 
-        rows.append({
+        labels = decode_labels(raw_labels, label_map)   # 🔥 FIX
+
+        all_rows.append({
             "Lead ID": lead.get("id"),
             "Title": lead.get("title", ""),
             "Status": lead.get("status", ""),
             "Source": lead.get("source_name", ""),
             "Add Time": lead.get("add_time", ""),
-            "Person Name": person_name,
-            "Organization": org_name,
+
+            # ✅ names
+            "Person Name": lead.get("person_name") or person_map.get(person_id, ""),
+            "Organization": lead.get("org_name") or org_map.get(org_id, ""),
             "Owner": user_map.get(owner_id, ""),
-            "Creator": user_map.get(creator_id, "")
+
+            # ✅ NEW
+            "Labels": labels,
+            "Deal Value": lead.get("deal_value", "")
         })
 
-    df = pd.DataFrame(rows).fillna("").astype(str)
-    return df[df["Owner"].str.lower() == "christine maitland"]
+    df = pd.DataFrame(all_rows).fillna("").astype(str)
 
-
-# =========================
+    return df
+    # =========================
 # MAIN
 # =========================
 def main():
