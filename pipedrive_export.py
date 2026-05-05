@@ -178,7 +178,7 @@ def fetch_leads():
         org_id = extract_id(lead.get("organization_id"))
         owner_id = extract_id(lead.get("owner_id"))
 
-        raw_labels = lead.get("labels", [])
+        raw_labels = lead.get("label_ids", [])
         labels = decode_value(raw_labels, label_map)
 
         rows.append({
