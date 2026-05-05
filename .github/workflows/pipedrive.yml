@@ -2,7 +2,7 @@ name: Pipedrive Daily Export
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # daily at 3 AM UTC (~8:30 AM IST)
+    - cron: '0 */2 * * *'   # every 2 hours
   workflow_dispatch:
 
 jobs:
