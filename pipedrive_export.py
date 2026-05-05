@@ -12,13 +12,15 @@ PERSON_URL = "https://api.pipedrive.com/v1/persons"
 ORG_URL = "https://api.pipedrive.com/v1/organizations"
 USERS_URL = "https://api.pipedrive.com/v1/users"
 ACTIVITY_URL = "https://api.pipedrive.com/v1/activities"
-FIELDS_URL = f"https://api.pipedrive.com/v1/personFields?api_token={API_TOKEN}"
+
+PERSON_FIELDS_URL = f"https://api.pipedrive.com/v1/personFields?api_token={API_TOKEN}"
+LEAD_FIELDS_URL = f"https://api.pipedrive.com/v1/leadFields?api_token={API_TOKEN}"
 
 CALL_LABEL_KEY = "6fb63814f3bd7ff09a6ad92d3e4abe3d4955ad07"
 
 
 # =========================
-# PAGINATION
+# COMMON PAGINATION
 # =========================
 def fetch_all(url):
     all_data = []
@@ -64,24 +66,29 @@ def extract_id(field):
     return field
 
 
-# =========================
-# DROPDOWN DECODER
-# =========================
-def get_option_map(field_key):
-    fields = requests.get(FIELDS_URL).json().get("data", [])
-    for f in fields:
-        if f["key"] == field_key:
-            return {
-                str(opt["id"]): opt["label"]
-                for opt in f.get("options", [])
-            }
-    return {}
-
-
 def decode_value(raw, option_map):
     if isinstance(raw, list):
         return ", ".join([option_map.get(str(v), str(v)) for v in raw])
     return option_map.get(str(raw), str(raw))
+
+
+# =========================
+# OPTION MAPS
+# =========================
+def get_person_option_map(field_key):
+    fields = requests.get(PERSON_FIELDS_URL).json().get("data", [])
+    for f in fields:
+        if f["key"] == field_key:
+            return {str(opt["id"]): opt["label"] for opt in f.get("options", [])}
+    return {}
+
+
+def get_lead_label_map():
+    fields = requests.get(LEAD_FIELDS_URL).json().get("data", [])
+    for f in fields:
+        if f["key"] == "labels":
+            return {str(opt["id"]): opt["label"] for opt in f.get("options", [])}
+    return {}
 
 
 # =========================
@@ -103,11 +110,12 @@ def get_org_map():
 
 
 # =========================
-# CONTACTS (FIXED)
+# CONTACTS
 # =========================
 def fetch_contacts():
     persons = fetch_all(PERSON_URL)
-    option_map = get_option_map(CALL_LABEL_KEY)
+
+    call_label_map = get_person_option_map(CALL_LABEL_KEY)
 
     rows = []
     for p in persons:
@@ -115,7 +123,7 @@ def fetch_contacts():
         phone = p.get("phone", [])
 
         raw_call_label = p.get(CALL_LABEL_KEY, "")
-        call_label = decode_value(raw_call_label, option_map)
+        call_label = decode_value(raw_call_label, call_label_map)
 
         rows.append({
             "Person Name": p.get("name", ""),
@@ -153,18 +161,17 @@ def fetch_activities():
 
 
 # =========================
-# LEADS (HYBRID FIX)
+# LEADS
 # =========================
 def fetch_leads():
     leads = fetch_all(LEADS_URL)
 
-    # mappings
     person_map = get_person_map()
     org_map = get_org_map()
     user_map = get_user_map()
-    label_map = get_lead_label_map()   # 🔥 NEW
+    label_map = get_lead_label_map()
 
-    all_rows = []
+    rows = []
 
     for lead in leads:
         person_id = extract_id(lead.get("person_id"))
@@ -172,30 +179,26 @@ def fetch_leads():
         owner_id = extract_id(lead.get("owner_id"))
 
         raw_labels = lead.get("labels", [])
+        labels = decode_value(raw_labels, label_map)
 
-        labels = decode_labels(raw_labels, label_map)   # 🔥 FIX
-
-        all_rows.append({
+        rows.append({
             "Lead ID": lead.get("id"),
             "Title": lead.get("title", ""),
             "Status": lead.get("status", ""),
             "Source": lead.get("source_name", ""),
             "Add Time": lead.get("add_time", ""),
-
-            # ✅ names
             "Person Name": lead.get("person_name") or person_map.get(person_id, ""),
             "Organization": lead.get("org_name") or org_map.get(org_id, ""),
             "Owner": user_map.get(owner_id, ""),
-
-            # ✅ NEW
             "Labels": labels,
             "Deal Value": lead.get("deal_value", "")
         })
 
-    df = pd.DataFrame(all_rows).fillna("").astype(str)
+    df = pd.DataFrame(rows).fillna("").astype(str)
+    return df[df["Owner"].str.lower() == "christine maitland"]
 
-    return df
-    # =========================
+
+# =========================
 # MAIN
 # =========================
 def main():
